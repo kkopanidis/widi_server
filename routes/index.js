@@ -10,7 +10,8 @@ function retrieveFromWeb(url, callback) {
         if (!error && response.statusCode == 200) {
             fs.writeFile(url.replace("/", "_"), response, function (err) {
                 if (err) {
-                    res.status(500).send("Error");
+                    callback(null);
+
                 } else {
 
                     callback(new Buffer(body));
@@ -18,38 +19,53 @@ function retrieveFromWeb(url, callback) {
             })
 
         }
+        else {
+            callback(null);
+        }
     });
 }
 
 function getFile(url, callback) {
 
-    var buffer = new Buffer(fs.readFileSync(url.replace("/", "_")));
+    fs.readFile(url.replace(/\//g, "_"), function (err, data) {
+        if (err || !data) {
+            retrieveFromWeb(url, callback);
 
-    if (buffer.length == 0) {
+        } else {
+            var buffer = new Buffer(data);
 
-        retrieveFromWeb(url, callback)
+            if (buffer.length == 0) {
 
-    } else {
-        callback(buffer)
+                retrieveFromWeb(url, callback)
 
-    }
+            } else {
+                callback(buffer)
+
+            }
+        }
+    });
+
 
 }
 
 /* GET file. */
 router.get('/', function (req, res, next) {
 
-    var part = res.getHeader("part"),
-        url = res.getHeader("url"),
-        total = res.getHeader("total");
+    var part = req.get("part"),
+        url = req.get("url"),
+        total = req.get("total");
 
     getFile(url, function (data) {
 
-        var length = data.length / total;
+        if (data) {
+            var length = data.length / total;
 
-        data = data.slice(part * length, (part * length) + length);
+            data = data.slice(part * length, (part * length) + length);
 
-        res.status(200).send(data);
+            res.status(200).send(data);
+        } else {
+            res.status(500).send("Error");
+        }
 
     })
 });
