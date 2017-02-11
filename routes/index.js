@@ -8,7 +8,7 @@ function retrieveFromWeb(url, callback) {
 
     request(url, function (error, response, body) {
         if (!error && response.statusCode == 200) {
-            fs.writeFile(url.replace("/", "_"), response, function (err) {
+            fs.writeFile(url.replace(/[&\/\\#,+()$~%.'":*?<>{}]/g, '_'), new Buffer(body), function (err) {
                 if (err) {
                     callback(null);
 
@@ -27,7 +27,7 @@ function retrieveFromWeb(url, callback) {
 
 function getFile(url, callback) {
 
-    fs.readFile(url.replace(/\//g, "_"), function (err, data) {
+    fs.readFile(url.replace(/[&\/\\#,+()$~%.'":*?<>{}]/g, '_'), function (err, data) {
         if (err || !data) {
             retrieveFromWeb(url, callback);
 
@@ -58,9 +58,11 @@ router.get('/', function (req, res, next) {
     getFile(url, function (data) {
 
         if (data) {
-            var length = data.length / total;
-
-            data = data.slice(part * length, (part * length) + length);
+            var length = data.length / total,
+                start = part * length;
+            if (part != 0)
+                start += 1;
+            data = data.slice(start, (part * length) + length);
 
             res.status(200).send(data);
         } else {
